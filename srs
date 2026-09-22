@@ -1,0 +1,232 @@
+import random
+import sys
+
+suitlist = ["Spades", "Clubs", "Hearts", "Diamonds"]
+numlist = [2, 3, 4, 5, 6, 7, 8, 9, 10, "Jack", "Queen", "King", "Ace"]
+moneyGlobal = 500
+
+def playGame():
+    money = moneyGlobal
+    suitpulledlist = []
+    numpulledlist = []
+    pulledlist = []
+    print("You currently have $" + str(money))
+
+    #Betting
+    while True:
+        print("Small bet = $10-50 | Medium bet = $50-100 | Hard bet = $100-500")
+        try:
+            bet = int(input("How much do you what to bet?: "))
+        except ValueError:
+            print("Please enter a number.")
+            continue
+        if bet < 10 or bet > 500:
+            print("Bet must be between $10 and $500.")
+        elif bet > money:
+            print("You don't have enough money!")
+        else:
+            break
+
+    money -= bet
+    winnings = bet
+    print("You bet $" + str(bet))
+
+    #Card generation
+    def cardcheck(card):
+        if card not in pulledlist:
+            pulledlist.append(card)
+            return True
+        return False
+
+    for i in range(4):
+        while True:
+            suit = random.choice(suitlist)
+            num = random.choice(numlist)
+            card = suit + str(num)
+            if cardcheck(card):
+                suitpulledlist.append(suit)
+                numpulledlist.append(num)
+                break
+
+    # Ensure cards 0 and 1 differ in value (for higher/lower)
+    while numpulledlist[0] == numpulledlist[1]:
+        num = random.choice(numlist)
+        numpulledlist[1] = num
+        pulledlist[1] = suitpulledlist[1] + str(num)
+
+    # Ensure card 2 isn't equal to card 0 or 1 (for inside/outside)
+    while numpulledlist[2] == numpulledlist[0] or numpulledlist[2] == numpulledlist[1]:
+        num = random.choice(numlist)
+        numpulledlist[2] = num
+        pulledlist[2] = suitpulledlist[2] + str(num)
+
+    wins = 0
+
+    # ROUND 1: Red or Black
+    print("Round 1: Red or Black?")
+    while True:
+        guess1 = input("Will the first card be Red or Black?: ").lower()
+        if guess1 not in ("red", "black"):
+            print("Please answer Red or Black.")
+            continue
+
+        print("Card revealed: " + str(numpulledlist[0]),"of",suitpulledlist[0])
+        is_black = suitpulledlist[0] in ("Spades", "Clubs")
+
+        if (guess1 == "black" and is_black) or (guess1 == "red" and not is_black):
+            print("Correct! Moving on.")
+            wins = 1
+            winnings = round(winnings * 1.5, 2)
+            print("Winnings: $" + str(winnings))
+            break
+        else:
+            color = "Black" if is_black else "Red"
+            print("Wrong! The card was " + color + ". Try again.")
+            break
+    
+    if wins < 1:
+        print("Better luck next time!")
+        return endOption(money)
+
+    if not askToContinue(winnings):
+        return endOption(money + winnings)
+
+    #  ROUND 2: Higher or Lower
+    print("Round 2: Higher or Lower?")
+    print("Previous card: " + str(numpulledlist[0]),"of",str(suitpulledlist[0]))
+
+    while True:
+        guess2 = input("Will the next card be Higher or Lower?: ").lower()
+        if guess2 not in ("higher", "lower"):
+            print("Please answer Higher or Lower.")
+            continue
+
+        print("Card revealed: " + str(numpulledlist[1]),"of",suitpulledlist[1])
+        id0 = numlist.index(numpulledlist[0])
+        id1 = numlist.index(numpulledlist[1])
+
+        if (guess2 == "higher" and id1 > id0) or (guess2 == "lower" and id1 < id0):
+            print("Correct!")
+            wins = 2
+            winnings = round(winnings * 2, 2)
+            print("Winnings: $" + str(winnings))
+        else:
+            result = "higher" if id1 > id0 else "lower"
+            print("Wrong! The card was " + result + ". You lose your winnings.")
+            winnings = 0
+        break
+
+    if wins < 2:
+        print("Better luck next time!")
+        return endOption(money)
+
+    if not askToContinue(winnings):
+        return endOption(money + winnings)
+
+    #  ROUND 3: Inside or Outside
+    print("Round 3: Inside or Outside?")
+    print("Previous cards: " + str(numpulledlist[0]),"of",suitpulledlist[0] + " and " + str(numpulledlist[1]),"of",suitpulledlist[1])
+
+    id0 = numlist.index(numpulledlist[0])
+    id1 = numlist.index(numpulledlist[1])
+    highcard = max(id0, id1)
+    lowcard = min(id0, id1)
+
+    while True:
+        guess3 = input("Will the card be Inside, Outside, or Same as the previous two?: ").lower()
+        if guess3 not in ("inside", "outside", "same"):
+            print("Please answer Inside, Outside, or Same.")
+            continue
+
+        print("Card revealed: " + str(numpulledlist[2]),"of",suitpulledlist[2])
+        id2 = numlist.index(numpulledlist[2])
+
+        correct = False
+        if guess3 == "inside":
+            correct = lowcard < id2 < highcard
+        elif guess3 == "outside":
+            correct = id2 < lowcard or id2 > highcard
+        elif guess3 == "same":
+            correct = id2 == lowcard or id2 == highcard
+
+        if correct:
+            print("Correct!")
+            wins = 3
+            winnings = round(winnings * 4, 2)
+            print("Winnings: $" + str(winnings))
+        else:
+            if lowcard < id2 < highcard:
+                actual = "inside"
+            elif id2 == lowcard or id2 == highcard:
+                actual = "same"
+            else:
+                actual = "outside"
+            print("Wrong! The card was " + actual + ". You lose your winnings.")
+            winnings = 0
+        break
+
+    if wins < 3:
+        print("Better luck next time!")
+        return endOption(money)
+
+    if not askToContinue(winnings):
+        return endOption(money + winnings)
+
+    #  ROUND 4: Suit
+    print("Round 4: What's the Suit?")
+
+    suit_map = {"spades": "Spades", "clubs": "Clubs", "hearts": "Hearts", "diamonds": "Diamonds"}
+
+    while True:
+        guess4 = input("What will the next card's suit be? (Spades, Clubs, Hearts, Diamonds): ").lower()
+        if guess4 not in suit_map:
+            print("Invalid suit. Please choose Spades, Clubs, Hearts, or Diamonds.")
+            continue
+
+        print("Card revealed: " + str(numpulledlist[3]),"of",suitpulledlist[3])
+
+        if suit_map[guess4] == suitpulledlist[3]:
+            print("YOU DID IT! Incredible!")
+            winnings = round(winnings * 10, 2)
+            print("Final winnings: $" + str(winnings))
+        else:
+            actual = [k for k, v in suit_map.items() if v == suitpulledlist[3]][0].capitalize()
+            print("It was " + actual + ". You lost it all!")
+            winnings = 0
+        break
+
+    return endOption(money + winnings)
+
+def askToContinue(winnings):
+    #Returns true to continue and false to stop and cash out."""
+    while True:
+        choice = input("Keep going? You have $" + str(winnings) + " currently. (Continue / Stop): ").lower()
+        if choice == "continue":
+            return True
+        elif choice == "stop":
+            print("You walk away with $" + str(winnings))
+            return False
+        else:
+            print("Please type Continue or Stop.")
+
+def endOption(total_money):
+    print("Run Over!")
+    print("You leave with $" + str(round(total_money, 2)))
+
+    if total_money < 10:
+      print("You lost your money! Better luck next time.")
+
+    while True:
+        again = input("Do you want to play again? (yes / no): ").lower()
+        if again == "yes":
+            moneyGlobal = total_money
+            playGame()
+            return
+        elif again == "no":
+            print("Thanks for playing Ride the Bus!")
+            sys.exit(0)
+        else:
+            print("Please answer yes or no.")
+
+playGame()
+
